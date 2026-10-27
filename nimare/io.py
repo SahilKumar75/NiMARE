@@ -1457,7 +1457,7 @@ def convert_sleuth_to_studyset(text_file, target="ale_2mm"):
 
 
 def _sleuth_to_nimads(text_file, target, studyset_id, studyset_name):
-    """Build a NIMADS payload while retaining the existing Sleuth coordinate rules."""
+    """Build a NIMADS payload from one or more Sleuth text files."""
     if not isinstance(text_file, (str, list)):
         raise ValueError(f"Unsupported type for parameter 'text_file': {type(text_file)}")
     records = convert_sleuth_to_dict(text_file)

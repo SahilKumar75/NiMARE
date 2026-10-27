@@ -1465,7 +1465,6 @@ def convert_mkda_to_studyset(
     metadata_columns=(),
     annotation_columns=(),
     target="mni152_2mm",
-    space=None,
 ):
     """Convert a tab-delimited MKDA coordinate table to a Studyset.
 
@@ -1488,9 +1487,6 @@ def convert_mkda_to_studyset(
     target : :obj:`str` or None, optional
         Space in which the Studyset reports coordinates. Source coordinates
         are retained.
-    space : {'MNI', 'T88', 'TAL'}, optional
-        Source space when the file has no ``Original_Space`` or ``CoordSys``
-        column. A file's space column takes precedence when present.
 
     Returns
     -------
@@ -1501,16 +1497,21 @@ def convert_mkda_to_studyset(
     ------
     ValueError
         If the table is malformed or analysis-level values conflict.
+
+    Notes
+    -----
+    Each focus takes its source space from the file's ``CoordSys`` or
+    ``Original_Space`` column: ``T88`` and Talairach labels map to ``TAL`` and
+    anything else maps to ``MNI``, following the MKDA format. Files without a
+    space column are treated as ``MNI``.
     """
     from nimare.nimads import Studyset
 
-    def normalize_space(value, line):
+    def normalize_space(value):
         label = value.strip().lower()
-        if "mni" in label or "ale" in label:
-            return "MNI"
         if label == "t88" or "tal" in label:
             return "TAL"
-        raise ValueError(f"MKDA line {line}: unsupported coordinate space {value!r}")
+        return "MNI"
 
     def selected_columns(names, header, label):
         if isinstance(names, str):
@@ -1555,9 +1556,6 @@ def convert_mkda_to_studyset(
             raise ValueError(f"Columns cannot be both metadata and annotations: {overlap}")
 
         space_column = columns.get("original_space") or columns.get("coordsys")
-        if not space_column and space is None:
-            raise ValueError("MKDA file has no space column; specify space explicitly")
-        default_space = normalize_space(space, 2) if not space_column else None
         size_columns = [columns[key] for key in ("n", "subjects") if key in columns]
 
         studies = {}
@@ -1581,9 +1579,7 @@ def convert_mkda_to_studyset(
             if not np.all(np.isfinite(coordinates)):
                 raise ValueError(f"MKDA line {line}: coordinates must be finite")
 
-            point_space = (
-                normalize_space(row[space_column], line) if space_column else default_space
-            )
+            point_space = normalize_space(row[space_column]) if space_column else "MNI"
             sample_sizes = set()
             for column in size_columns:
                 value = row[column].strip()

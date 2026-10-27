@@ -74,7 +74,7 @@ def test_convert_mkda_subjects_and_t88_space(tmp_path):
 
 @pytest.mark.parametrize(
     "source,expected",
-    [("MNI152", "MNI"), ("ALE", "MNI"), ("Talairach-Tournoux", "TAL")],
+    [("MNI152", "MNI"), ("ALE", "MNI"), ("Talairach-Tournoux", "TAL"), ("XYZ", "MNI")],
 )
 def test_convert_mkda_accepts_common_space_labels(tmp_path, source, expected):
     """Common source labels use NiMARE's existing MNI and Talairach categories."""
@@ -103,17 +103,14 @@ def test_convert_mkda_full_ids_remain_unique_with_hyphens(tmp_path):
     assert {analysis.name for analysis in studyset.analyses} == {"C", "B-C", "B%2DC"}
 
 
-def test_convert_mkda_requires_explicit_space_without_space_column(tmp_path):
-    """Import does not silently assume a coordinate space."""
+def test_convert_mkda_defaults_to_mni_without_space_column(tmp_path):
+    """A file with no space column is MNI, matching the MKDA format default."""
     path = mkda_file(
         tmp_path,
         ["x", "y", "z", "Study", "Contrast"],
         ["1\t2\t3\tA\tB"],
     )
-    with pytest.raises(ValueError, match="specify space explicitly"):
-        convert_mkda_to_studyset(path)
-
-    studyset = convert_mkda_to_studyset(path, space="MNI")
+    studyset = convert_mkda_to_studyset(path)
     assert studyset.to_dict()["studies"][0]["analyses"][0]["points"][0]["space"] == "MNI"
 
 
@@ -129,11 +126,6 @@ def test_convert_mkda_requires_explicit_space_without_space_column(tmp_path):
             ["x", "y", "z", "Study", "Contrast", "Original_Space"],
             ["nan\t2\t3\tS\tC\tMNI"],
             "coordinates must be finite",
-        ),
-        (
-            ["x", "y", "z", "Study", "Contrast", "Original_Space"],
-            ["1\t2\t3\tS\tC\tXYZ"],
-            "unsupported coordinate space",
         ),
         (
             ["x", "y", "z", "Study", "Contrast", "Original_Space"],
